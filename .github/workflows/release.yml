@@ -2,10 +2,16 @@ name: Release
 on:
   push:
     tags: ['v*-fork*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing immutable release tag to build
+        required: true
+        type: string
 permissions:
   contents: write
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.tag || github.ref_name }}
   cancel-in-progress: false
 jobs:
   release:
@@ -13,19 +19,21 @@ jobs:
     timeout-minutes: 15
     env:
       NODE_OPTIONS: --max-old-space-size=4096
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          ref: ${{ inputs.tag || github.ref }}
       - name: Verify release source
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           expected="v$(node -p "require('./package.json').version")"
-          test "$GITHUB_REF_NAME" = "$expected"
+          test "$RELEASE_TAG" = "$expected"
           git fetch origin main
           git merge-base --is-ancestor HEAD origin/main
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             echo 'Release already exists; never overwrite published assets.' >&2
             exit 1
           fi
@@ -54,4 +62,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/*.tgz dist/SHA256SUMS --verify-tag --title "$GITHUB_REF_NAME" --notes 'Personal fork: asynchronous Cloudflare Access admission and mobile client disabled. Built by GitHub Actions; not published to npm. Browser and device acceptance is performed by the user.'
+          gh release create "$RELEASE_TAG" dist/*.tgz dist/SHA256SUMS --verify-tag --title "$RELEASE_TAG" --notes 'Personal fork: asynchronous Cloudflare Access admission and mobile client disabled. Built by GitHub Actions; not published to npm. Browser and device acceptance is performed by the user.'
