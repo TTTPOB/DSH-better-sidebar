@@ -49,8 +49,8 @@ jobs:
       - name: Pack and inspect
         run: |
           mkdir -p dist
-          pnpm pack --out dist/
           archive="dist/dsh-better-sidebar-$(node -p "require('./package.json').version").tgz"
+          pnpm pack --out "$archive"
           tar -tzf "$archive" > dist/contents.txt
           test -s "$archive"
           tar -xOf "$archive" package/package.json | node --input-type=module -e 'let text=""; for await (const chunk of process.stdin) text+=chunk; const p=JSON.parse(text); if(p.name!=="dsh-better-sidebar" || p.version!==JSON.parse((await import("node:fs")).readFileSync("package.json","utf8")).version) process.exit(1); console.log(p.name,p.version);'
