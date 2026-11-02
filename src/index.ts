@@ -15,6 +15,7 @@ import type { Stats } from 'node:fs'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Duplex } from 'node:stream'
 import { WebSocket, WebSocketServer } from 'ws'
+import { bindAccessExpiry } from './ws-access.ts'
 import { parse as parseYaml } from 'yaml'
 import type { Context, SidebarHttpRequest, SidebarSettingsService } from './context-types.ts'
 import {
@@ -1408,7 +1409,10 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
   const resolved = resolveSidebarConfig(config)
   // Connection owns both deployment trust and authentication; never infer or
   // bypass its policy from invocation flags or a copied trust list.
-  const fence = (req: SidebarHttpRequest): boolean => ctx.connection.requestRejection(req) === undefined
+  const fence = async (req: SidebarHttpRequest): Promise<401 | 403 | undefined> => {
+    const admission = await ctx.connection.admitAsync(req)
+    return 'rejection' in admission ? admission.rejection : undefined
+  }
   // The model-facing open-request registry: queues `sidebar_open` requests
   // per session and pushes them to connected sidebar views over the
   // `/sidebar/ws/agent-opens` socket.
@@ -1543,8 +1547,10 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
     kind: 'prefix',
     path: '/sidebar/api',
     handler: async (req, res) => {
-      if (!fence(req)) {
-        writeJson(res, 403, { ok: false, error: { code: 'forbidden', message: 'forbidden' } })
+      const rejection = await fence(req)
+      if (rejection !== undefined) {
+        const message = rejection === 401 ? 'unauthorized' : 'forbidden'
+        writeJson(res, rejection, { ok: false, error: { code: message, message } })
         return
       }
       if (req.method !== 'POST') {
@@ -1592,8 +1598,10 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
     kind: 'exact',
     path: '/sidebar/upload',
     handler: async (req, res) => {
-      if (!fence(req)) {
-        writeJson(res, 403, { ok: false, error: { code: 'forbidden', message: 'forbidden' } })
+      const rejection = await fence(req)
+      if (rejection !== undefined) {
+        const message = rejection === 401 ? 'unauthorized' : 'forbidden'
+        writeJson(res, rejection, { ok: false, error: { code: message, message } })
         return
       }
       if (req.method !== 'POST') {
@@ -1630,8 +1638,10 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
     kind: 'exact',
     path: '/sidebar/write',
     handler: async (req, res) => {
-      if (!fence(req)) {
-        writeJson(res, 403, { ok: false, error: { code: 'forbidden', message: 'forbidden' } })
+      const rejection = await fence(req)
+      if (rejection !== undefined) {
+        const message = rejection === 401 ? 'unauthorized' : 'forbidden'
+        writeJson(res, rejection, { ok: false, error: { code: message, message } })
         return
       }
       if (req.method !== 'POST') {
@@ -1683,8 +1693,10 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
     kind: 'exact',
     path: '/sidebar/archive',
     handler: async (req, res) => {
-      if (!fence(req)) {
-        writeJson(res, 403, { ok: false, error: { code: 'forbidden', message: 'forbidden' } })
+      const rejection = await fence(req)
+      if (rejection !== undefined) {
+        const message = rejection === 401 ? 'unauthorized' : 'forbidden'
+        writeJson(res, rejection, { ok: false, error: { code: message, message } })
         return
       }
       if (req.method !== 'GET') {
@@ -1708,9 +1720,10 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
     kind: 'prefix',
     path: '/sidebar/file',
     handler: async (req, res) => {
-      if (!fence(req)) {
-        res.writeHead(403)
-        res.end('forbidden')
+      const rejection = await fence(req)
+      if (rejection !== undefined) {
+        res.writeHead(rejection)
+        res.end(rejection === 401 ? 'unauthorized' : 'forbidden')
         return
       }
       if (req.method !== 'GET') {
@@ -1778,9 +1791,10 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
     kind: 'prefix',
     path: '/sidebar/html',
     handler: async (req, res) => {
-      if (!fence(req)) {
-        res.writeHead(403)
-        res.end('forbidden')
+      const rejection = await fence(req)
+      if (rejection !== undefined) {
+        res.writeHead(rejection)
+        res.end(rejection === 401 ? 'unauthorized' : 'forbidden')
         return
       }
       if (req.method !== 'GET') {
@@ -1835,12 +1849,14 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
   const agentOpenWss = new WebSocketServer({ noServer: true })
   ctx.effect(() => ctx.webServer.registerUpgrade({
     path: '/sidebar/ws/agent-opens',
-    handler: (req, socket, head) => {
-      if (!fence(req)) {
-        socket.destroy()
+    handler: async (req, socket, head) => {
+      const rejection = await fence(req)
+      if (rejection !== undefined) {
+        socket.end(`HTTP/1.1 ${rejection} ${rejection === 401 ? 'Unauthorized' : 'Forbidden'}\r\nConnection: close\r\n\r\n`)
         return
       }
       agentOpenWss.handleUpgrade(req as unknown as IncomingMessage, socket as unknown as Duplex, head as Buffer, (ws) => {
+        if (!bindAccessExpiry(ws, ctx.connection.accessExpiresAt(req))) return
         void attachAgentOpen(agentOpenRegistry, ws, req)
       })
     },
@@ -1856,12 +1872,14 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
   const fsWatchWss = new WebSocketServer({ noServer: true })
   ctx.effect(() => ctx.webServer.registerUpgrade({
     path: '/sidebar/ws/fs-watch',
-    handler: (req, socket, head) => {
-      if (!fence(req)) {
-        socket.destroy()
+    handler: async (req, socket, head) => {
+      const rejection = await fence(req)
+      if (rejection !== undefined) {
+        socket.end(`HTTP/1.1 ${rejection} ${rejection === 401 ? 'Unauthorized' : 'Forbidden'}\r\nConnection: close\r\n\r\n`)
         return
       }
       fsWatchWss.handleUpgrade(req as unknown as IncomingMessage, socket as unknown as Duplex, head as Buffer, (ws) => {
+        if (!bindAccessExpiry(ws, ctx.connection.accessExpiresAt(req))) return
         void attachFsWatch(ctx, ws, req)
       })
     },
@@ -1878,12 +1896,14 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
   ctx.effect(() => () => { sidechatPush.dispose() }, 'dsh-better-sidebar: side-chat push hub')
   ctx.effect(() => ctx.webServer.registerUpgrade({
     path: '/sidebar/ws/sidechat',
-    handler: (req, socket, head) => {
-      if (!fence(req)) {
-        socket.destroy()
+    handler: async (req, socket, head) => {
+      const rejection = await fence(req)
+      if (rejection !== undefined) {
+        socket.end(`HTTP/1.1 ${rejection} ${rejection === 401 ? 'Unauthorized' : 'Forbidden'}\r\nConnection: close\r\n\r\n`)
         return
       }
       sidechatWss.handleUpgrade(req as unknown as IncomingMessage, socket as unknown as Duplex, head as Buffer, (ws) => {
+        if (!bindAccessExpiry(ws, ctx.connection.accessExpiresAt(req))) return
         sidechatPush.attach(ws)
       })
     },

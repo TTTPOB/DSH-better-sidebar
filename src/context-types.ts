@@ -64,9 +64,10 @@ export interface SidebarHttpResponse {
   destroy?(error?: Error): void
 }
 
-/** The upgrade socket face (structural subset: the destroy the fences use). */
+/** The upgrade socket face (structural subset for refusing an upgrade). */
 export interface SidebarUpgradeSocket {
   destroy(): void
+  end(data: string): void
 }
 
 /** The upgrade head bytes (Buffer at runtime; typed as bytes so no Node
@@ -118,8 +119,9 @@ export interface SidebarSessionStore {
  * Host request admission plus the client transport recovery face.
  */
 export interface SidebarConnectionService {
-  /** Public Host/Origin and authentication policy (DSH 0.2.0-rc.2+). */
-  requestRejection(request: { headers: Record<string, string | string[] | undefined> }): 401 | 403 | undefined
+  /** Public asynchronous Host/Origin and authentication policy, including Access. */
+  admitAsync(request: { headers: Record<string, string | string[] | undefined> }): Promise<{ readonly peer: unknown } | { readonly rejection: 401 | 403 }>
+  accessExpiresAt(request: { headers: Record<string, string | string[] | undefined> }): number | undefined
   state: {
     getSnapshot(): 'connected' | 'disconnected' | 'connecting' | undefined
     subscribe(listener: () => void): () => void

@@ -1,5 +1,8 @@
 # dsh-better-sidebar
 
+> **个人 fork：TTTPOB / 0.28.2-fork1**。基于上游 0.28.2，修复 Cloudflare Access 异步鉴权；在 `(max-width: 1023px) and (pointer: coarse)` 设备上不挂载客户端增强，保留原生手机界面。设备模式在插件激活时确定，改变窗口/输入设备模式后请刷新页面。Host 后端仍加载。此 fork 只通过 [GitHub Release](https://github.com/TTTPOB/DSH-better-sidebar/releases) 的版本化 tarball 交付，不发布 npm；以下 npm 安装说明属于上游版本。
+
+
 <div align="center">
   <b style="font-size: 1.15em;">DSH 的双工作台：原生右侧栏 + 自绘底部面板，并把 <code>ctx.betterSidebar</code> 服务开放给所有插件</b><br /><br />
   <a href="https://www.npmjs.com/package/dsh-better-sidebar"><img alt="npm version" src="https://img.shields.io/npm/v/dsh-better-sidebar" /></a>

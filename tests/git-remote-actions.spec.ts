@@ -92,7 +92,7 @@ function makeRemoteFixture(): RemoteFixture {
 function mount(): { route: SidebarWebRoute } {
   const routes: SidebarWebRoute[] = []
   const ctx = {
-    connection: { requestRejection: () => undefined },
+    connection: { admitAsync: async () => ({ peer: {} }) },
     webServer: {
       register: (route: SidebarWebRoute) => { routes.push(route); return () => {} },
       registerUpgrade: (_route: SidebarWebUpgradeRoute) => () => {},

@@ -71,13 +71,14 @@ async function etagOf(name: ChunkName, chunkDir: string): Promise<{ etag: string
  * chunk scripts live in (overridable for tests).
  */
 export function createBundleRouteHandler(
-  fence: (req: SidebarHttpRequest) => boolean,
+  fence: (req: SidebarHttpRequest) => Promise<401 | 403 | undefined>,
   chunkDir: string = LIB_DIR,
 ): (req: SidebarHttpRequest, res: SidebarHttpResponse) => Promise<void> {
   return async (req, res): Promise<void> => {
-    if (!fence(req)) {
-      res.writeHead(403)
-      res.end('forbidden')
+    const rejection = await fence(req)
+    if (rejection !== undefined) {
+      res.writeHead(rejection)
+      res.end(rejection === 401 ? 'unauthorized' : 'forbidden')
       return
     }
     if (req.method !== 'GET' && req.method !== 'HEAD') {
@@ -136,7 +137,7 @@ export function createBundleRouteHandler(
 }
 
 /** Register the /sidebar/bundle route (disposed with the fiber). */
-export function registerBundleRoute(ctx: Context, fence: (req: SidebarHttpRequest) => boolean): () => void {
+export function registerBundleRoute(ctx: Context, fence: (req: SidebarHttpRequest) => Promise<401 | 403 | undefined>): () => void {
   return ctx.webServer.register({
     kind: 'prefix',
     path: '/sidebar/bundle',

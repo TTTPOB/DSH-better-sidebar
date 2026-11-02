@@ -4,7 +4,7 @@
 > **编号保持不变**：代码、测试与文档里写的「AGENTS.md §3.4 第 N 条」就是本文第 N 条。
 > 历史版本已不在支持线内（当前基线 DSH 0.2.1-rc.1，见 [AGENTS.md](../AGENTS.md) §3）；逐条适配过程见 [docs/plans/](plans/) 与 [CHANGELOG.md](../CHANGELOG.md)。
 
-当前适配约束：HTTP/WS 均由 `ctx.connection.requestRejection(req)` 裁决 Host/Origin 与浏览器认证，只有 `undefined` 放行，不读取已删除的 `webRuntime`。alpha.5 同时移除了 `@deepseek-ai/dsh-invariants`、`ctx.invariants` 和上游 `/invariant` 子路径；本插件不再发布 invariant companion。
+个人 fork 的 HTTP/WS 准入统一等待 `ctx.connection.admitAsync(req)`，由宿主校验 Host/Origin、浏览器认证和 Cloudflare Access；保留宿主的 401/403 状态，不自行放宽信任。同步 `requestRejection` 不支持远程 Access 验证，不能用于这些路由。WebSocket 按宿主提供的 Access 到期时间关闭。不读取已删除的 `webRuntime`。alpha.5 同时移除了 `@deepseek-ai/dsh-invariants`、`ctx.invariants` 和上游 `/invariant` 子路径；本插件不再发布 invariant companion。
 
 本次 RC 适配只更新版本与依赖声明，不改变上述行为。alpha.5 → rc.1 上游完整树差异共 355 项、全部为 `package.json`，源码零变化；本次验证见 [RC 适配记录](plans/2026-10-17-dsh-0.2.1-rc.1-adaptation.md)，不复用历史 alpha 测试数字。
 

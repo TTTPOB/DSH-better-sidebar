@@ -44,7 +44,7 @@ function req(method: string, url: string, headers: Record<string, string> = {}):
 function setup(): { handler: (req: IncomingMessage, res: ServerResponse) => Promise<void>; dir: string; cleanup: () => void } {
   const dir = mkdtempSync(join(tmpdir(), 'bundle-route-'))
   writeFileSync(join(dir, 'client-editor.js'), 'window.__ModuleLoader__ && 0;')
-  const handler = createBundleRouteHandler(() => true, dir)
+  const handler = createBundleRouteHandler(async () => undefined, dir)
   return { handler, dir, cleanup: () => { removeTree(dir) } }
 }
 
@@ -160,7 +160,7 @@ describe('/sidebar/bundle route', () => {
   it('enforces the browser-trust fence with 403 before any lookup', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'bundle-route-fence-'))
     try {
-      const handler = createBundleRouteHandler(() => false, dir)
+      const handler = createBundleRouteHandler(async () => 403, dir)
       const res = fakeRes()
       await handler(req('GET', '/sidebar/bundle/editor.js'), res as unknown as ServerResponse)
       expect(res.status).toBe(403)

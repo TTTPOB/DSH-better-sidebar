@@ -54,7 +54,7 @@ const canCreateSymlink = (() => {
 })()
 
 interface FakeContext {
-  connection: { requestRejection: () => undefined }
+  connection: { admitAsync: () => Promise<{ peer: object }>; accessExpiresAt: () => undefined }
   webServer: {
     register: (route: SidebarWebRoute) => () => void
     registerUpgrade: (route: SidebarWebUpgradeRoute) => () => void
@@ -95,7 +95,7 @@ describe('host plugin smoke', () => {
     const upgrades: SidebarWebUpgradeRoute[] = []
     const effects: Array<() => void | (() => void)> = []
     const ctx: FakeContext = {
-      connection: { requestRejection: () => undefined },
+      connection: { admitAsync: async () => ({ peer: {} }), accessExpiresAt: () => undefined },
       webServer: {
         register: (route) => { routes.push(route); return () => {} },
         registerUpgrade: (route) => { upgrades.push(route); return () => {} },
@@ -147,7 +147,7 @@ describe('host plugin smoke', () => {
     const upgrades: SidebarWebUpgradeRoute[] = []
     const effects: Array<() => void | (() => void)> = []
     const ctx: FakeContext = {
-      connection: { requestRejection: () => undefined },
+      connection: { admitAsync: async () => ({ peer: {} }), accessExpiresAt: () => undefined },
       webServer: {
         register: () => () => {},
         registerUpgrade: (route) => { upgrades.push(route); return () => {} },
@@ -197,7 +197,7 @@ describe('host plugin smoke', () => {
     const routes: SidebarWebRoute[] = []
     const effects: Array<() => void | (() => void)> = []
     const ctx: FakeContext = {
-      connection: { requestRejection: () => undefined },
+      connection: { admitAsync: async () => ({ peer: {} }), accessExpiresAt: () => undefined },
       webServer: {
         register: (route) => { routes.push(route); return () => {} },
         registerUpgrade: () => () => {},
@@ -507,7 +507,7 @@ describe('session cwd resolution over the API route', () => {
     const routes: SidebarWebRoute[] = []
     lastMountedRoutes = routes
     const ctx = {
-      connection: { requestRejection: () => undefined },
+      connection: { admitAsync: async () => ({ peer: {} }), accessExpiresAt: () => undefined },
       webServer: {
         register: (route: SidebarWebRoute) => { routes.push(route); return () => {} },
         registerUpgrade: (route: SidebarWebUpgradeRoute) => { void route; return () => {} },
@@ -1706,7 +1706,7 @@ const mountWithSettings = (settings?: unknown, home?: string): SidebarWebRoute =
   const routes: SidebarWebRoute[] = []
   lastMountedRoutes = routes
   const ctx = {
-    connection: { requestRejection: () => undefined },
+    connection: { admitAsync: async () => ({ peer: {} }), accessExpiresAt: () => undefined },
     webServer: {
       register: (route: SidebarWebRoute) => { routes.push(route); return () => {} },
       registerUpgrade: (route: SidebarWebUpgradeRoute) => { void route; return () => {} },
@@ -1946,7 +1946,7 @@ describe('agent sidebar-open tool gating', () => {
       configure: () => () => {},
     }
     const ctx = {
-      connection: { requestRejection: () => undefined },
+      connection: { admitAsync: async () => ({ peer: {} }), accessExpiresAt: () => undefined },
       webServer: {
         register: (route: SidebarWebRoute) => { routes.push(route); return () => {} },
         registerUpgrade: (route: SidebarWebUpgradeRoute) => { void route; return () => {} },

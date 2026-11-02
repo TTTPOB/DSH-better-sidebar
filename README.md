@@ -1,5 +1,8 @@
 # dsh-better-sidebar
 
+> **Personal fork: TTTPOB / 0.28.2-fork1**. Based on upstream 0.28.2, with asynchronous Cloudflare Access admission and no client enhancement on `(max-width: 1023px) and (pointer: coarse)` devices. The native mobile UI remains in control; reload after changing device mode. The Host backend remains loaded. This fork ships versioned tarballs through [GitHub Releases](https://github.com/TTTPOB/DSH-better-sidebar/releases), not npm. The npm instructions below describe upstream releases.
+
+
 <div align="center">
   <b style="font-size: 1.15em;">A dual workbench for DSH: native right sidebar + self-drawn bottom panel, with the <code>ctx.betterSidebar</code> service open to every plugin</b><br /><br />
   <a href="https://www.npmjs.com/package/dsh-better-sidebar"><img alt="npm version" src="https://img.shields.io/npm/v/dsh-better-sidebar" /></a>

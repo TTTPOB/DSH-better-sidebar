@@ -2,6 +2,12 @@
 
 > 本文档收录 dsh-better-sidebar 的完整发布历史（最新版摘要见 [README](README_ZH.md)；同步发布于 [GitHub Releases](https://github.com/omdsh-dev/DSH-better-sidebar/releases)）。
 
+### v0.28.2-fork1
+
+- Cloudflare Access：HTTP、懒加载和 WebSocket 准入等待宿主异步校验，保留 401/403 状态；长连接随 Access 凭据到期关闭。
+- 手机禁用：在小于 1024px 且粗指针的设备上不挂载客户端增强，保留宿主/Mobile Workbench 界面；改变设备模式后刷新生效。
+- 个人 fork 通过 GitHub Actions 构建版本化 Release tarball，不发布 npm。
+
 ### v0.28.2
 
 - 🛡 **冷会话（detached）的 cwd 改读工作区地址，不再整份解码会话日志**：`sessionQuery.observeSession(..., { projectionMode: 'all' })` 为拿一个 `workingDirectory` 要解码整份 zstd 日志并水合全部投影；而启动期真正并发的是 **fs-watch 每监视目录一帧**、`/sidebar/file|html` 每资源一次、`/sidebar/upload|write` 每次一次——它们都绕过 0.28.1 只覆盖 `/sidebar/api` 的 `cwdOf()` 单飞，所以 39 MB 级会话在 130–180 ms 里被并发整读数十次（0.28.0 的 44 次 OOM、0.28.1 的 36 次是同一路径，不是「去重失效」）。现在 detached 会话的 cwd 走 `sessionPersistence.stat` 的 **header-only** 读（只读第一个 zstd 帧）+ 进程内 memo/在飞去重，`activeWorktreeRootOf` 对 detached 会话直接返回该地址；宿主 attach 后仍跟随 `working_directory` 与 linked worktree。

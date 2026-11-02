@@ -119,7 +119,10 @@
    class of content; this is the half that also covers third-party tab
    content we do not own (the content-side cleanup is .gitFooter dropping its
    own z-index in changes.module.css). */
-:global([data-dockkit-float-resize]) {
+/* Unlike the other global selectors, this hook belongs to the host, not the
+   plugin. CSS imports run before apply, so require an explicit activation. */
+:global(body[data-dsh-better-sidebar-active] [data-dockkit-float-resize]) {
+
   z-index: 2;
 }
 

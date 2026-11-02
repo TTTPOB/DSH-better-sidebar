@@ -32,6 +32,8 @@ import { LOCALE_NS, attachLocale, attachBetterLocale, t, zh, en } from './locale
 import { loadChunk } from './chunk-loader.ts'
 import css from './sidebar.module.css'
 import './layout.css'
+import { isMobileSidebarDisabled } from './mobile-policy.ts'
+
 
 /** Services required before mounting (provided by the client runtime; the
  *  locale service backs the sidebar's copy — see locales.ts). `modules`
@@ -61,6 +63,17 @@ export const inject = ['slots', 'sessions', 'locale', 'modules', 'connection', '
  * @param ctx - the client cordis context (slots, sessions).
  */
 export function apply(ctx: Context): void {
+  // This personal fork leaves the complete native phone UI untouched. Gate
+  // before locales, services, files takeover, effects, slots or preferences.
+  if (isMobileSidebarDisabled()) return
+
+  // Styles are evaluated before apply. Only activation may opt native host
+  // elements into global overrides; disposal restores the host-only layout.
+  ctx.effect(() => {
+    document.body.setAttribute('data-dsh-better-sidebar-active', '')
+    return () => { document.body.removeAttribute('data-dsh-better-sidebar-active') }
+  }, 'dsh-better-sidebar: global style scope')
+
   // The sidebar follows the DSH i18n system: attach the locale service so
   // the module-level t()/isZh() resolve the Host-backed language preference
   // (and switch live — the Sidebar root subscribes to it), and register the

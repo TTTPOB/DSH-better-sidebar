@@ -208,7 +208,7 @@ function mount(setup: {
     },
     logger: { info: () => {}, warn: () => {} },
     profileContext: undefined,
-    connection: { requestRejection: () => undefined },
+    connection: { admitAsync: async () => ({ peer: {} }) },
     webServer: {
       register: (route: SidebarWebRoute) => { routes.push(route); return () => {} },
       registerUpgrade: (_route: SidebarWebUpgradeRoute) => () => {},

@@ -143,7 +143,7 @@ describe('createWorkspaceFile', () => {
  * editor reads.
  */
 interface FakeContext {
-  connection: { requestRejection: () => undefined }
+  connection: { admitAsync: () => Promise<{ peer: object }> }
   webServer: {
     register: (route: SidebarWebRoute) => () => void
     registerUpgrade: () => () => void
@@ -160,7 +160,7 @@ interface FakeContext {
 function mountApi(workspace: string): SidebarWebRoute {
   const routes: SidebarWebRoute[] = []
   const ctx: FakeContext = {
-    connection: { requestRejection: () => undefined },
+    connection: { admitAsync: async () => ({ peer: {} }) },
     webServer: { register: (route) => { routes.push(route); return () => {} }, registerUpgrade: () => () => {} },
     sessions: { get: () => ({ header: { cwd: workspace } }) },
     tools: { register: () => () => {} },
