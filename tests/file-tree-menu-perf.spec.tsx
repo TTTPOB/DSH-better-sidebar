@@ -55,6 +55,8 @@ const service = {
   subscribe: () => () => {},
   fileIcon: (path: string) => { fileIcons.push(path); return null },
   folderIcon: (path: string) => { folderIcons.push(path); return null },
+  // No external file actions in these fixtures — the counters stay the probe.
+  getFileActions: () => [],
 } as unknown as BetterSidebarService
 
 const HOST_APPS = [
@@ -264,7 +266,7 @@ describe('FileTree context-menu cost', () => {
       .find(item => item.getAttribute('aria-haspopup') === 'menu')
     expect(parent).toBeDefined()
     await act(async () => { parent!.click(); await Promise.resolve() })
-    const submenuLabels = [...document.querySelectorAll<HTMLElement>('[role="menu"] [role="menu"] [role="menuitem"]')]
+    const submenuLabels = [...document.querySelectorAll<HTMLElement>('[role="menu"][data-submenu-layout] [role="menuitem"]')]
       .map(item => item.textContent?.trim())
     // The default handler is hoisted to level 1; the rest of the list is
     // already there (no disabled Loading row).

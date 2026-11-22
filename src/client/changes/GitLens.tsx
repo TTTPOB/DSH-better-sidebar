@@ -67,6 +67,23 @@ function errorMessage(reason: unknown): string {
   return reason instanceof Error ? reason.message : String(reason)
 }
 
+/** One checkout root in the form comparisons use: `git rev-parse` reports
+ *  forward slashes, React state may carry the shell's backslashes, Windows
+ *  folds case, and a trailing separator means the same directory.
+ *
+ *  Case folds only for Windows spellings. POSIX keeps case: a container
+ *  workspace can legally hold `Foo` and `foo` as two different checkouts, and
+ *  folding would light up both chips. */
+function rootKey(value: string | undefined): string {
+  const key = (value ?? '').replaceAll('\\', '/').replace(/\/+$/, '')
+  return /^[a-zA-Z]:\//.test(key) ? key.toLowerCase() : key
+}
+
+/** Whether two spellings name the SAME checkout root. */
+function sameRepoRoot(left: string | undefined, right: string | undefined): boolean {
+  return rootKey(left) === rootKey(right)
+}
+
 /**
  * Whether two inventory listings say the same thing. Every listing pass answers
  * with a fresh array of fresh rows, so identity alone would republish on each
@@ -403,7 +420,16 @@ export function GitLens(props: GitLensProps) {
   const [graphRefresh, setGraphRefresh] = useState(0)
   const [changesOpen, setChangesOpen] = useState(true)
   const [graphOpen, setGraphOpen] = useState(true)
-  const [moreOpen, setMoreOpen] = useState(false)
+  /**
+   * The open More Actions menu: the trigger's viewport corner (null = closed).
+   * Its repo/worktree rows carry nested submenus, which the primitives anchor
+   * with static CSS growing RIGHT of the card — past the right edge of this
+   * docked panel. This menu is button-anchored (no cursor point to publish),
+   * so open/close keeps the measured corner and hands it to the same flip
+   * mechanism as the file-tree row menu.
+   */
+  const [moreMenu, setMoreMenu] = useState<{ x: number; y: number } | null>(null)
+  const moreOpen = moreMenu !== null
   const [branchOpen, setBranchOpen] = useState(false)
   /** Commit drafts, one per scope: the Commit button asks only for a message
    *  and a staged row, so a draft typed against another project would submit
@@ -557,7 +583,7 @@ export function GitLens(props: GitLensProps) {
     setFileMenu(null)
     setHistoryMenu(null)
     setConfirm(null)
-    setMoreOpen(false)
+    setMoreMenu(null)
     setBranchOpen(false)
   }
 
@@ -1077,6 +1103,27 @@ export function GitLens(props: GitLensProps) {
         {snapshot !== null && !isRepo && <Notice kind="empty" tone="page">{t('notRepo')}</Notice>}
         {snapshot?.truncated === true && <Notice kind="warn">{t('statusTruncated')}</Notice>}
 
+        {/* A container workspace can hold several independent repositories, and
+            every view below is pinned to ONE of them — without this row the
+            panel silently shows the first root, so nothing on screen says the
+            others exist. The switcher is not a second source of truth:
+            `repoChoices` comes from the status snapshot, `chooseRepo` re-pins
+            the scope (reads, writes, graph) to the clicked root. */}
+        {isRepo && repoChoices.length > 1 && (
+          <div className={css.repoSwitcher} data-scm-repos role="group" aria-label={t('gitRepository')}>
+            {repoChoices.map(root => {
+              const isActive = sameRepoRoot(root, repoRoot ?? snapshot?.root)
+              return (
+                <button key={root} type="button" className={css.repoChip} data-scm-repo={root}
+                  data-active={isActive ? 'true' : undefined} aria-pressed={isActive} title={root}
+                  disabled={busy || suggesting} onClick={() => { chooseRepo(root) }}>
+                  {baseName(root)}
+                </button>
+              )
+            })}
+          </div>
+        )}
+
         {isRepo && (
           <section className={css.changesSection} data-scm-section="changes">
             <div className={css.scmHeader}>
@@ -1092,9 +1139,15 @@ export function GitLens(props: GitLensProps) {
                   disabled={!canCommit} onClick={commit} />
                 <IconButton size="sm" icon={<IconRefreshOutlineRegular size={14} />} label={t('refresh')}
                   disabled={busy || suggesting} onClick={() => { invalidateGitStatus(scope.sessionId); void refresh(false) }} />
-                <Menu open={moreOpen} onClose={() => { setMoreOpen(false) }} portal compact align="end" autoFocus
+                <Menu open={moreOpen} onClose={() => { setMoreMenu(null) }} portal compact align="end" autoFocus
                   anchor={<IconButton size="sm" icon={<IconEllipsisOutlineRegular size={14} />} label={t('gitMoreActions')}
-                    active={moreOpen} onClick={() => { setMoreOpen(open => !open) }} />}
+                    active={moreOpen} onClick={(event) => {
+                      if (moreOpen) { setMoreMenu(null); return }
+                      // The menu hangs off this button, so its corner IS the anchor the
+                      // flip heuristic needs (a keyboard activation has no cursor point).
+                      const rect = event.currentTarget.getBoundingClientRect()
+                      setMoreMenu({ x: rect.right, y: rect.top })
+                    }} />}
                   items={[
                     { id: 'pull', label: t('pull'), disabled: busy || suggesting || snapshot?.detached === true },
                     { id: 'push', label: t('push'), disabled: busy || suggesting || snapshot?.detached === true },
@@ -1108,7 +1161,7 @@ export function GitLens(props: GitLensProps) {
                     }] : []),
                   ]}
                   onSelect={id => {
-                    setMoreOpen(false)
+                    setMoreMenu(null)
                     if (id === 'push') push()
                     else if (id === 'pull') pull()
                     else if (id.startsWith('repo:')) chooseRepo(id.slice(5))
@@ -1261,7 +1314,7 @@ export function GitLens(props: GitLensProps) {
         portal
         compact
         align="start"
-        getAnchorRect={() => (fileMenu === null ? null : new DOMRect(fileMenu.x, fileMenu.y, 0, 0))}
+        anchorPoint={fileMenu === null ? undefined : { x: fileMenu.x, y: fileMenu.y }}
         anchor={<span />}
       />
 
@@ -1319,7 +1372,7 @@ export function GitLens(props: GitLensProps) {
         portal
         compact
         align="start"
-        getAnchorRect={() => (historyMenu === null ? null : new DOMRect(historyMenu.x, historyMenu.y, 0, 0))}
+        anchorPoint={historyMenu === null ? undefined : { x: historyMenu.x, y: historyMenu.y }}
         anchor={<span />}
       />
 

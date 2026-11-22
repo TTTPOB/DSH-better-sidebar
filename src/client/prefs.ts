@@ -12,7 +12,11 @@ import type { api } from './api.ts'
 import {
   EXPLORER_EXCLUDE_DEFAULTS,
   SIDEBAR_PREFS_DEFAULTS,
+  SIDECHAT_PREFS_ID,
+  SIDECHAT_SUBMIT_KEY_SETTING,
+  parseSidechatSubmitKey,
   type SidebarPrefs,
+  type SidechatSubmitKey,
 } from '../prefs-shared.ts'
 
 export {
@@ -89,14 +93,46 @@ export function parsePrefs(value: unknown): SidebarPrefs {
     tabsEnabled: booleanMapOf(record.tabsEnabled),
     viewersEnabled: booleanMapOf(record.viewersEnabled),
     pluginSettings: pluginSettingsMapOf(record.pluginSettings),
+    guideRows: positiveIntegerOf(record.guideRows, SIDEBAR_PREFS_DEFAULTS.guideRows),
+    guideOrder: uniqueStringListOf(record.guideOrder),
+    guideHidden: booleanMapOf(record.guideHidden),
+    guideAlign: record.guideAlign === 'top' || record.guideAlign === 'center'
+      ? record.guideAlign
+      : SIDEBAR_PREFS_DEFAULTS.guideAlign,
+    guideTakeover: typeof record.guideTakeover === 'boolean'
+      ? record.guideTakeover
+      : SIDEBAR_PREFS_DEFAULTS.guideTakeover,
   }
+}
+
+/** One positive safe integer, or the fallback (row counts are 1-based). */
+function positiveIntegerOf(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 1 ? value : fallback
+}
+
+/** A trimmed, de-duplicated string list preserving first-seen order. */
+function uniqueStringListOf(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  const out: string[] = []
+  const seen = new Set<string>()
+  for (const item of value) {
+    if (typeof item !== 'string') continue
+    const trimmed = item.trim()
+    if (trimmed === '' || seen.has(trimmed)) continue
+    seen.add(trimmed)
+    out.push(trimmed)
+  }
+  return out
 }
 
 /**
  * Validate the plugin-owned settings map (v0.12.0+): `{ descriptorId: { key:
  * value } }`, nested open maps. Any non-object value (or a malformed whole)
  * falls back to the empty map — the schema defaults already guard the wire
- * shape, this is the client's second line.
+ * shape, this is the client's second line. The one CONTRACTED value inside the
+ * open map is the side-chat composer's submit key (a mode, not free-form data):
+ * it is normalized to a known mode here, so an absent / legacy / hand-edited
+ * value reaches the view as the default instead of as an unknown gesture.
  */
 function pluginSettingsMapOf(value: unknown): Record<string, Record<string, unknown>> {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return {}
@@ -106,7 +142,27 @@ function pluginSettingsMapOf(value: unknown): Record<string, Record<string, unkn
       out[id] = blob as Record<string, unknown>
     }
   }
+  const sidechat = out[SIDECHAT_PREFS_ID]
+  if (sidechat !== undefined) {
+    // Copy, never mutate the wire payload: the resolved document is shared
+    // with the settings page's revision bookkeeping.
+    out[SIDECHAT_PREFS_ID] = {
+      ...sidechat,
+      [SIDECHAT_SUBMIT_KEY_SETTING]: parseSidechatSubmitKey(sidechat[SIDECHAT_SUBMIT_KEY_SETTING]),
+    }
+  }
   return out
+}
+
+/**
+ * The side-chat composer's submission mode from the parsed preferences. The
+ * value is the side-chat feature's own plugin-owned setting (see
+ * `prefs-shared.ts`), so a document that never chose one reads the default.
+ * @param prefs - the parsed side card preferences.
+ * @returns the configured submit-key mode.
+ */
+export function sidechatSubmitKeyOf(prefs: SidebarPrefs): SidechatSubmitKey {
+  return parseSidechatSubmitKey(prefs.pluginSettings[SIDECHAT_PREFS_ID]?.[SIDECHAT_SUBMIT_KEY_SETTING])
 }
 
 /**
