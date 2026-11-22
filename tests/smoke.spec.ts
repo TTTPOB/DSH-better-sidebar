@@ -1644,7 +1644,7 @@ describe('sidechat prompt large-body admission', () => {
       isAttachmentError: () => false,
     }
     const ctx = {
-      connection: { requestRejection: () => undefined },
+      connection: { admitAsync: async () => ({ peer: {} }), accessExpiresAt: () => undefined },
       webServer: {
         register: (route: SidebarWebRoute) => { routes.push(route); return () => {} },
         registerUpgrade: () => () => {},

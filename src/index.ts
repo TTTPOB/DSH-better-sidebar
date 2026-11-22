@@ -1696,7 +1696,12 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
     kind: 'exact',
     path: '/sidebar/sidechat-image',
     handler: async (req, res) => {
-      if (!fence(req)) { writeError(res, new SidebarError('forbidden', 'forbidden', 403)); return }
+      const rejection = await fence(req)
+      if (rejection !== undefined) {
+        const message = rejection === 401 ? 'unauthorized' : 'forbidden'
+        writeJson(res, rejection, { ok: false, error: { code: message, message } })
+        return
+      }
       if (req.method !== 'GET') { writeError(res, new SidebarError('method-error', 'method not allowed', 405)); return }
       try {
         const params = new URL(req.url ?? '/', 'http://dsh.internal').searchParams

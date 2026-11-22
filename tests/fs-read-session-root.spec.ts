@@ -9,7 +9,7 @@ import type { SidebarWebRoute } from '../src/context-types.ts'
 function mountApi(cwd: string): SidebarWebRoute {
   const routes: SidebarWebRoute[] = []
   const ctx = {
-    connection: { requestRejection: () => undefined },
+    connection: { admitAsync: async () => ({ peer: {} }), accessExpiresAt: () => undefined },
     webRuntime: { trustedHosts: [] },
     webServer: {
       register: (route: SidebarWebRoute) => { routes.push(route); return () => {} },

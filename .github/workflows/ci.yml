@@ -22,6 +22,8 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
+      # Generated source imported by src; --ignore-scripts skips its prepare hook.
+      - run: pnpm build:asset
       - run: pnpm typecheck
       - run: pnpm test:fork
       - run: pnpm build

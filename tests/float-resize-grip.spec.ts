@@ -25,7 +25,8 @@ const changesCss = stripComments(readFileSync('src/client/changes/changes.module
 
 describe('floating tab resize grip', () => {
   it('raises the host grip above content that stacks at z-index 1', () => {
-    const rule = shellCss.match(/:global\(\[data-dockkit-float-resize\]\)\s*\{([^}]*)\}/)?.[1]
+    // The fork scopes the host hook to an activated plugin (phones skip it).
+    const rule = shellCss.match(/:global\((?:body\[data-dsh-better-sidebar-active\]\s+)?\[data-dockkit-float-resize\]\)\s*\{([^}]*)\}/)?.[1]
     expect(rule, 'the [data-dockkit-float-resize] global rule must exist').toBeDefined()
     const zIndex = Number(rule!.match(/z-index:\s*(\d+)/)?.[1])
     // The Git footer used to stack at 1; anything <= 1 leaves it covering the

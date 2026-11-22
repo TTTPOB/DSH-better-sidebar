@@ -623,7 +623,8 @@ describe('version and feature detection (v0.12.0)', () => {
   it('reports the plugin version in lockstep with package.json', () => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const pkg = JSON.parse(require('node:fs').readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }
-    expect(SIDEBAR_SERVICE_VERSION).toBe(pkg.version)
+    // The fork suffix (-forkN) is a packaging label; the service API version is upstream's.
+    expect(SIDEBAR_SERVICE_VERSION).toBe(pkg.version.replace(/-fork\d+$/, ''))
     expect(createBetterSidebarService(createSidebarStore()).version).toBe(SIDEBAR_SERVICE_VERSION)
   })
 
